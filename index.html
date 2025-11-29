@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>塔羅抽牌</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- 使用者狀態列 -->
+    <div class="user-bar" id="userBar">
+        <div class="user-info" id="userInfo" style="display: none;">
+            <span id="userName"></span>
+            <button class="calendar-btn" onclick="showCalendar()">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                    <rect x="7" y="14" width="3" height="3" rx="0.5" fill="currentColor" stroke="none"></rect>
+                </svg>
+            </button>
+            <button class="logout-btn" onclick="logout()">登出</button>
+        </div>
+        <div class="login-prompt" id="loginPrompt">
+            <button class="login-btn" onclick="showLoginModal()">🔐 登入以儲存抽牌紀錄</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1>✨ 塔羅抽牌 ✨</h1>
+        
+        <div class="card-count-selector" id="countSelector">
+            <button class="count-btn active" data-count="1">1</button>
+            <button class="count-btn" data-count="3">3</button>
+            <button class="count-btn" data-count="4">4</button>
+            <button class="count-btn" data-count="5">5</button>
+        </div>
+        
+        <button class="draw-btn" id="drawBtn">抽 牌</button>
+        
+        <div class="cards-display" id="cardsDisplay"></div>
+        
+        <div class="hover-hint" id="hoverHint" style="display: none;">👆 將滑鼠移到牌卡上查看牌義</div>
+        
+        <!-- 筆記區 -->
+        <div class="note-section" id="noteSection" style="display: none;">
+            <div class="note-container">
+                <textarea id="noteInput" placeholder="寫下你的感想或問題..." maxlength="50"></textarea>
+                <div class="note-footer">
+                    <span class="note-count"><span id="noteCharCount">0</span>/50</span>
+                    <button class="note-save-btn" id="noteSaveBtn" onclick="saveNote()">💾 儲存筆記</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 登入彈窗 -->
+    <div class="modal" id="loginModal" style="display: none;">
+        <div class="modal-content">
+            <button class="modal-close" onclick="hideLoginModal()">✕</button>
+            <h2>登入</h2>
+            <div class="login-form">
+                <input type="email" id="emailInput" placeholder="電子郵件" />
+                <input type="password" id="passwordInput" placeholder="密碼" />
+                <button class="submit-btn" onclick="login()">登入</button>
+                <div class="divider">或</div>
+                <button class="google-btn" onclick="loginWithGoogle()">
+                    <img src="https://www.google.com/favicon.ico" alt="Google" width="20">
+                    使用 Google 登入
+                </button>
+                <p class="switch-text">
+                    還沒有帳號？<a href="#" onclick="showRegisterModal()">註冊</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 註冊彈窗 -->
+    <div class="modal" id="registerModal" style="display: none;">
+        <div class="modal-content">
+            <button class="modal-close" onclick="hideRegisterModal()">✕</button>
+            <h2>註冊</h2>
+            <div class="login-form">
+                <input type="text" id="registerName" placeholder="暱稱" />
+                <input type="email" id="registerEmail" placeholder="電子郵件" />
+                <input type="password" id="registerPassword" placeholder="密碼（至少6位）" />
+                <button class="submit-btn" onclick="register()">註冊</button>
+                <p class="switch-text">
+                    已有帳號？<a href="#" onclick="showLoginModal()">登入</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 日曆彈窗 -->
+    <div class="modal" id="calendarModal" style="display: none;">
+        <div class="modal-content modal-calendar">
+            <button class="modal-close" onclick="hideCalendar()">✕</button>
+            <h2>📅 抽牌日曆</h2>
+            
+            <!-- 統計區 -->
+            <div class="calendar-stats">
+                <div class="stat-item">
+                    <span class="stat-icon">🔮</span>
+                    <span class="stat-value" id="statTotalReadings">0</span>
+                    <span class="stat-label">總抽牌次數</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-icon">📆</span>
+                    <span class="stat-value" id="statTotalDays">0</span>
+                    <span class="stat-label">抽牌天數</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-icon">🔥</span>
+                    <span class="stat-value" id="statStreak">0</span>
+                    <span class="stat-label">連續天數</span>
+                </div>
+            </div>
+            
+            <!-- 月份導航 -->
+            <div class="calendar-nav">
+                <button class="nav-btn" onclick="prevMonth()">‹</button>
+                <span class="calendar-month" id="calendarMonth"></span>
+                <button class="nav-btn" onclick="nextMonth()">›</button>
+            </div>
+            
+            <!-- 日曆 -->
+            <div class="calendar-grid">
+                <div class="calendar-header">
+                    <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+                </div>
+                <div class="calendar-days" id="calendarDays"></div>
+            </div>
+            
+            <!-- 當日紀錄 -->
+            <div class="day-readings" id="dayReadings" style="display: none;">
+                <h3 id="dayReadingsTitle"></h3>
+                <div class="day-readings-list" id="dayReadingsList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/tarot-data.js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
