@@ -26,7 +26,6 @@ document.getElementById('drawBtn').addEventListener('click', () => {
 // 抽牌功能
 function drawCards() {
     const display = document.getElementById('cardsDisplay');
-    const hoverHint = document.getElementById('hoverHint');
     display.innerHTML = '';
     drawnCards = [];
     
@@ -79,9 +78,6 @@ function drawCards() {
         
         display.appendChild(wrapper);
     });
-    
-    // 顯示提示
-    hoverHint.style.display = 'block';
     
     // 顯示筆記區（如果已登入）
     if (currentUser && isSupabaseConfigured()) {
