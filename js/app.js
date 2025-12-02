@@ -87,6 +87,9 @@ function drawCards() {
         display.appendChild(wrapper);
     });
     
+    // 調整牌卡大小以適應螢幕寬度
+    adjustCardSize();
+    
     // 顯示筆記區（如果已登入）
     if (currentUser && isSupabaseConfigured()) {
         document.getElementById('noteSection').style.display = 'block';
@@ -115,9 +118,7 @@ function drawCards() {
 // 重置抽牌
 function resetDraw() {
     const display = document.getElementById('cardsDisplay');
-    const hoverHint = document.getElementById('hoverHint');
     display.innerHTML = '';
-    hoverHint.style.display = 'none';
     document.getElementById('noteSection').style.display = 'none';
     drawnCards = [];
     currentReadingId = null;
@@ -534,4 +535,60 @@ document.querySelectorAll('.modal').forEach(modal => {
             modal.style.display = 'none';
         }
     });
+});
+
+// 調整牌卡大小以適應螢幕寬度（不換行）
+function adjustCardSize() {
+    const display = document.getElementById('cardsDisplay');
+    const wrappers = display.querySelectorAll('.card-wrapper');
+    const cardCount = wrappers.length;
+    
+    if (cardCount === 0) return;
+    
+    // 計算可用寬度
+    const containerWidth = display.parentElement.clientWidth - 20; // 減去 padding
+    const gap = Math.min(20, containerWidth * 0.03); // gap 最大 20px 或 3vw
+    const totalGap = gap * (cardCount - 1);
+    const maxCardWidth = 112; // 最大牌卡寬度
+    
+    // 計算每張牌的理想寬度
+    let cardWidth = (containerWidth - totalGap) / cardCount;
+    
+    // 限制最大寬度
+    cardWidth = Math.min(cardWidth, maxCardWidth);
+    
+    // 設定每張牌的寬度
+    wrappers.forEach(wrapper => {
+        wrapper.style.width = `${cardWidth}px`;
+    });
+    
+    // 調整字體大小
+    const scale = cardWidth / maxCardWidth;
+    wrappers.forEach(wrapper => {
+        const meaningLayer = wrapper.querySelector('.card-meaning-layer');
+        const cardName = wrapper.querySelector('.card-name');
+        
+        if (meaningLayer) {
+            meaningLayer.style.padding = `${10 * scale}px ${8 * scale}px`;
+            
+            const title = meaningLayer.querySelector('.meaning-title');
+            const keywords = meaningLayer.querySelector('.meaning-keywords-inline');
+            const desc = meaningLayer.querySelector('.meaning-desc');
+            
+            if (title) title.style.fontSize = `${0.85 * scale}rem`;
+            if (keywords) keywords.style.fontSize = `${0.65 * scale}rem`;
+            if (desc) desc.style.fontSize = `${0.7 * scale}rem`;
+        }
+        
+        if (cardName) {
+            cardName.style.fontSize = `${0.85 * scale}rem`;
+        }
+    });
+}
+
+// 視窗大小改變時重新調整
+window.addEventListener('resize', () => {
+    if (isDrawn) {
+        adjustCardSize();
+    }
 });

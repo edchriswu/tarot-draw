@@ -167,14 +167,20 @@ h1 {
 .cards-display {
     display: flex;
     justify-content: center;
-    flex-wrap: wrap;
-    gap: 20px;
+    flex-wrap: nowrap;
+    gap: min(20px, 3vw);
     margin-top: 35px;
+    width: 100%;
+    max-width: 100%;
+    padding: 0 10px;
+    box-sizing: border-box;
 }
 
 .card-wrapper {
     position: relative;
-    width: 112px;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 112px;
     opacity: 0;
     transform: translateY(30px) rotateY(180deg);
     animation: cardReveal 0.6s ease forwards;
@@ -195,8 +201,8 @@ h1 {
 
 .card-container {
     position: relative;
-    width: 112px;
-    height: 180px;
+    width: 100%;
+    aspect-ratio: 112 / 180;
 }
 
 /* 牌義底層 */
@@ -915,35 +921,6 @@ h1 {
         font-size: 1.1rem;
     }
     
-    .cards-display {
-        gap: 12px;
-    }
-    
-    .card-wrapper {
-        width: 95px;
-    }
-    
-    .card-container {
-        width: 95px;
-        height: 155px;
-    }
-    
-    .card-name {
-        font-size: 0.75rem;
-    }
-    
-    .meaning-title {
-        font-size: 0.75rem;
-    }
-    
-    .meaning-keywords-inline {
-        font-size: 0.6rem;
-    }
-    
-    .meaning-desc {
-        font-size: 0.6rem;
-    }
-    
     .user-bar {
         padding: 8px 10px;
     }
@@ -951,29 +928,6 @@ h1 {
     .login-btn, .logout-btn, .history-btn {
         padding: 6px 12px;
         font-size: 0.75rem;
-    }
-}
-
-@media (max-width: 360px) {
-    .card-wrapper {
-        width: 80px;
-    }
-    
-    .card-container {
-        width: 80px;
-        height: 130px;
-    }
-    
-    .card-name {
-        font-size: 0.7rem;
-    }
-    
-    .meaning-title {
-        font-size: 0.7rem;
-    }
-    
-    .meaning-desc {
-        font-size: 0.55rem;
     }
 }
 
