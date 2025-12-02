@@ -581,28 +581,11 @@ function adjustCardSize() {
             cardInner.style.borderRadius = `${6 * scale}px`;
         }
         
-        // 調整牌義層
+        // 調整牌義層（只調整 padding 和 border，字體維持原大小）
         if (meaningLayer) {
             meaningLayer.style.padding = `${10 * scale}px ${8 * scale}px`;
             meaningLayer.style.borderRadius = `${10 * scale}px`;
             meaningLayer.style.borderWidth = `${2 * scale}px`;
-            
-            const title = meaningLayer.querySelector('.meaning-title');
-            const keywords = meaningLayer.querySelector('.meaning-keywords-inline');
-            const desc = meaningLayer.querySelector('.meaning-desc');
-            const reversedTag = meaningLayer.querySelector('.reversed-tag');
-            
-            if (title) title.style.fontSize = `${0.85 * scale}rem`;
-            if (keywords) keywords.style.fontSize = `${0.65 * scale}rem`;
-            if (desc) desc.style.fontSize = `${0.7 * scale}rem`;
-            if (reversedTag) reversedTag.style.fontSize = `${0.75 * scale}rem`;
-        }
-        
-        if (cardName) {
-            cardName.style.fontSize = `${0.85 * scale}rem`;
-            // 調整牌名下方的「逆」標籤
-            const nameReversedTag = cardName.querySelector('.reversed-tag');
-            if (nameReversedTag) nameReversedTag.style.fontSize = `${0.75 * scale}rem`;
         }
     });
 }
