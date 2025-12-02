@@ -587,6 +587,21 @@ function adjustCardSize() {
             meaningLayer.style.borderRadius = `${10 * scale}px`;
             meaningLayer.style.borderWidth = `${2 * scale}px`;
         }
+        
+        // 只在 5 張牌時，針對特定長牌名縮放
+        if (cardCount === 5) {
+            const cardName = wrapper.querySelector('.card-name');
+            if (cardName) {
+                const nameText = cardName.textContent.trim();
+                const longNames = ['逆 五角侍衛', '逆 五角騎士', '逆 五角皇后', '逆 五角國王'];
+                if (longNames.some(name => nameText.includes(name.replace(' ', '')))) {
+                    // 縮放到適合寬度
+                    cardName.style.fontSize = `${0.85 * scale}rem`;
+                    const reversedTag = cardName.querySelector('.reversed-tag');
+                    if (reversedTag) reversedTag.style.fontSize = `${0.75 * scale}rem`;
+                }
+            }
+        }
     });
 }
 
