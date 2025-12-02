@@ -590,14 +590,19 @@ function adjustCardSize() {
             const title = meaningLayer.querySelector('.meaning-title');
             const keywords = meaningLayer.querySelector('.meaning-keywords-inline');
             const desc = meaningLayer.querySelector('.meaning-desc');
+            const reversedTag = meaningLayer.querySelector('.reversed-tag');
             
             if (title) title.style.fontSize = `${0.85 * scale}rem`;
             if (keywords) keywords.style.fontSize = `${0.65 * scale}rem`;
             if (desc) desc.style.fontSize = `${0.7 * scale}rem`;
+            if (reversedTag) reversedTag.style.fontSize = `${0.75 * scale}rem`;
         }
         
         if (cardName) {
             cardName.style.fontSize = `${0.85 * scale}rem`;
+            // 調整牌名下方的「逆」標籤
+            const nameReversedTag = cardName.querySelector('.reversed-tag');
+            if (nameReversedTag) nameReversedTag.style.fontSize = `${0.75 * scale}rem`;
         }
     });
 }
