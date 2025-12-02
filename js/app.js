@@ -69,8 +69,12 @@ function drawCards() {
         
         // 觸控裝置支援
         const container = wrapper.querySelector('.card-container');
-        container.addEventListener('touchstart', (e) => {
-            container.classList.toggle('touched');
+        container.addEventListener('click', (e) => {
+            // 檢測是否為觸控裝置
+            if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+                e.preventDefault();
+                container.classList.toggle('touched');
+            }
         });
         
         display.appendChild(wrapper);
