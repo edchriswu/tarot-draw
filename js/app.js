@@ -70,18 +70,22 @@ function drawCards() {
         const container = wrapper.querySelector('.card-container');
         let isTouchDevice = false;
         
+        // 儲存牌卡資訊供後續使用
+        wrapper.dataset.cardName = card.name;
+        wrapper.dataset.cardKeywords = card.keywords;
+        wrapper.dataset.cardMeaning = meaningText;
+        wrapper.dataset.isReversed = isReversed;
+        
         // 偵測觸控事件
         container.addEventListener('touchend', (e) => {
             isTouchDevice = true;
-            e.preventDefault(); // 防止觸發 click 事件
-            container.classList.toggle('touched');
+            e.preventDefault();
+            handleCardClick(wrapper, selectedCount);
         });
         
-        // 桌面裝置的點擊（如果不是觸控裝置）
+        // 桌面裝置的點擊
         container.addEventListener('click', (e) => {
-            if (!isTouchDevice) {
-                // 桌面裝置不需要點擊切換，用 hover 即可
-            }
+            handleCardClick(wrapper, selectedCount);
         });
         
         display.appendChild(wrapper);
@@ -120,6 +124,7 @@ function resetDraw() {
     const display = document.getElementById('cardsDisplay');
     display.innerHTML = '';
     document.getElementById('noteSection').style.display = 'none';
+    document.getElementById('meaningDisplay').style.display = 'none';
     drawnCards = [];
     currentReadingId = null;
     
@@ -662,4 +667,45 @@ function adjustHistoryCardSize() {
             }
         });
     });
+}
+
+// 處理牌卡點擊
+function handleCardClick(wrapper, cardCount) {
+    const container = wrapper.querySelector('.card-container');
+    const meaningDisplay = document.getElementById('meaningDisplay');
+    
+    // 4-5 張牌時，在下方顯示牌義
+    if (cardCount >= 4) {
+        // 移除其他牌卡的選中狀態
+        document.querySelectorAll('.card-wrapper').forEach(w => {
+            w.classList.remove('selected');
+        });
+        
+        // 切換當前牌卡的選中狀態
+        const isSelected = wrapper.classList.contains('selected');
+        
+        if (isSelected) {
+            // 取消選中，隱藏牌義
+            wrapper.classList.remove('selected');
+            meaningDisplay.style.display = 'none';
+        } else {
+            // 選中，顯示牌義
+            wrapper.classList.add('selected');
+            
+            const isReversed = wrapper.dataset.isReversed === 'true';
+            const cardName = wrapper.dataset.cardName;
+            const keywords = wrapper.dataset.cardKeywords;
+            const meaning = wrapper.dataset.cardMeaning;
+            
+            document.getElementById('meaningDisplayTitle').innerHTML = 
+                `${isReversed ? '<span class="reversed-tag">逆</span> ' : ''}${cardName}`;
+            document.getElementById('meaningDisplayKeywords').textContent = keywords;
+            document.getElementById('meaningDisplayText').textContent = meaning;
+            
+            meaningDisplay.style.display = 'block';
+        }
+    } else {
+        // 1-3 張牌時，使用原本的翻牌效果
+        container.classList.toggle('touched');
+    }
 }
