@@ -565,11 +565,10 @@ function adjustCardSize() {
         wrapper.style.width = `${cardWidth}px`;
     });
     
-    // 調整字體大小和邊框
+    // 調整邊框
     const scale = cardWidth / maxCardWidth;
     wrappers.forEach(wrapper => {
         const meaningLayer = wrapper.querySelector('.card-meaning-layer');
-        const cardName = wrapper.querySelector('.card-name');
         const cardFrame = wrapper.querySelector('.card-frame');
         const cardInner = wrapper.querySelector('.card-inner');
         
@@ -591,18 +590,20 @@ function adjustCardSize() {
             meaningLayer.style.borderWidth = `${2 * scale}px`;
         }
         
-        // 只在 5 張牌時，針對特定長牌名縮放
-        if (cardCount === 5) {
-            const cardName = wrapper.querySelector('.card-name');
-            if (cardName) {
-                const nameText = cardName.textContent.trim();
-                const longNames = ['逆 五角侍衛', '逆 五角騎士', '逆 五角皇后', '逆 五角國王'];
-                if (longNames.some(name => nameText.includes(name.replace(' ', '')))) {
-                    // 縮放到適合寬度
-                    cardName.style.fontSize = `${0.85 * scale}rem`;
-                    const reversedTag = cardName.querySelector('.reversed-tag');
-                    if (reversedTag) reversedTag.style.fontSize = `${0.75 * scale}rem`;
-                }
+        // 檢查牌名是否超出寬度，如果超出則縮放
+        const cardName = wrapper.querySelector('.card-name');
+        if (cardName) {
+            // 先重置縮放
+            cardName.style.transform = '';
+            cardName.style.transformOrigin = 'center top';
+            
+            // 檢查是否超出
+            const wrapperWidth = wrapper.clientWidth;
+            const nameWidth = cardName.scrollWidth;
+            
+            if (nameWidth > wrapperWidth) {
+                const nameScale = wrapperWidth / nameWidth;
+                cardName.style.transform = `scale(${nameScale})`;
             }
         }
     });

@@ -306,7 +306,7 @@ h1 {
     font-size: 0.85rem;
     color: #e8d5b7;
     text-align: center;
-    word-break: keep-all;
+    white-space: nowrap;
 }
 
 .reversed-tag {
