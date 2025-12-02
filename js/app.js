@@ -562,14 +562,30 @@ function adjustCardSize() {
         wrapper.style.width = `${cardWidth}px`;
     });
     
-    // 調整字體大小
+    // 調整字體大小和邊框
     const scale = cardWidth / maxCardWidth;
     wrappers.forEach(wrapper => {
         const meaningLayer = wrapper.querySelector('.card-meaning-layer');
         const cardName = wrapper.querySelector('.card-name');
+        const cardFrame = wrapper.querySelector('.card-frame');
+        const cardInner = wrapper.querySelector('.card-inner');
         
+        // 調整邊框大小
+        if (cardFrame) {
+            cardFrame.style.padding = `${6 * scale}px`;
+            cardFrame.style.borderRadius = `${10 * scale}px`;
+        }
+        
+        if (cardInner) {
+            cardInner.style.padding = `${4 * scale}px`;
+            cardInner.style.borderRadius = `${6 * scale}px`;
+        }
+        
+        // 調整牌義層
         if (meaningLayer) {
             meaningLayer.style.padding = `${10 * scale}px ${8 * scale}px`;
+            meaningLayer.style.borderRadius = `${10 * scale}px`;
+            meaningLayer.style.borderWidth = `${2 * scale}px`;
             
             const title = meaningLayer.querySelector('.meaning-title');
             const keywords = meaningLayer.querySelector('.meaning-keywords-inline');
