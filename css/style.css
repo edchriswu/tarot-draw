@@ -614,8 +614,9 @@ h1 {
 
 .day-reading-cards {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 8px;
+    width: 100%;
 }
 
 /* 筆記顯示 */
@@ -847,6 +848,8 @@ h1 {
     background: rgba(232, 213, 183, 0.1);
     border: 1px solid #c9a96e;
     border-radius: 8px;
+    flex: 0 1 auto;
+    min-width: 0;
     padding: 8px;
     display: flex;
     flex-direction: column;

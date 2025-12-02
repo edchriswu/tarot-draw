@@ -448,6 +448,9 @@ function showDayReadings(year, month, day) {
             </div>
         `;
     }).join('');
+    
+    // 調整歷史紀錄牌卡大小
+    setTimeout(() => adjustHistoryCardSize(), 0);
 }
 
 // 上個月
@@ -610,4 +613,52 @@ window.addEventListener('resize', () => {
     if (isDrawn) {
         adjustCardSize();
     }
+    adjustHistoryCardSize();
 });
+
+// 調整歷史紀錄牌卡大小（不換行）
+function adjustHistoryCardSize() {
+    const containers = document.querySelectorAll('.day-reading-cards');
+    
+    containers.forEach(container => {
+        const cards = container.querySelectorAll('.history-card');
+        const cardCount = cards.length;
+        
+        if (cardCount === 0) return;
+        
+        // 計算可用寬度
+        const containerWidth = container.clientWidth;
+        const gap = 8;
+        const totalGap = gap * (cardCount - 1);
+        const maxCardWidth = 70; // 最大牌卡寬度
+        
+        // 計算每張牌的理想寬度
+        let cardWidth = (containerWidth - totalGap) / cardCount;
+        
+        // 限制最大寬度
+        cardWidth = Math.min(cardWidth, maxCardWidth);
+        
+        // 計算縮放比例
+        const scale = cardWidth / maxCardWidth;
+        
+        // 設定每張牌的寬度和內部元素
+        cards.forEach(card => {
+            card.style.width = `${cardWidth}px`;
+            card.style.padding = `${8 * scale}px`;
+            card.style.borderRadius = `${8 * scale}px`;
+            card.style.gap = `${5 * scale}px`;
+            
+            const img = card.querySelector('.history-card-img');
+            if (img) {
+                img.style.width = `${50 * scale}px`;
+                img.style.height = `${80 * scale}px`;
+                img.style.borderRadius = `${4 * scale}px`;
+            }
+            
+            const name = card.querySelector('.history-card-name');
+            if (name) {
+                name.style.fontSize = `${0.7 * scale}rem`;
+            }
+        });
+    });
+}
