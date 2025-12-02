@@ -287,10 +287,12 @@ h1 {
     transform: rotate(180deg);
 }
 
-/* 滑鼠懸停效果 */
-.card-container:hover .card-image-layer {
-    opacity: 0;
-    transform: scale(0.95);
+/* 滑鼠懸停效果 - 只在有滑鼠的裝置上啟用 */
+@media (hover: hover) {
+    .card-container:hover .card-image-layer {
+        opacity: 0;
+        transform: scale(0.95);
+    }
 }
 
 .card-name {
@@ -980,11 +982,12 @@ h1 {
     .card-container {
         cursor: pointer;
     }
-    
-    .card-container.touched .card-image-layer {
-        opacity: 0;
-        transform: scale(0.95);
-    }
+}
+
+/* 點擊切換效果 - 適用於所有裝置 */
+.card-container.touched .card-image-layer {
+    opacity: 0 !important;
+    transform: scale(0.95) !important;
 }
 
 /* 與我聯絡按鈕 */

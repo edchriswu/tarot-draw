@@ -66,13 +66,21 @@ function drawCards() {
             </div>
         `;
         
-        // 觸控裝置支援
+        // 觸控裝置支援 - 點擊切換牌卡顯示
         const container = wrapper.querySelector('.card-container');
+        let isTouchDevice = false;
+        
+        // 偵測觸控事件
+        container.addEventListener('touchend', (e) => {
+            isTouchDevice = true;
+            e.preventDefault(); // 防止觸發 click 事件
+            container.classList.toggle('touched');
+        });
+        
+        // 桌面裝置的點擊（如果不是觸控裝置）
         container.addEventListener('click', (e) => {
-            // 檢測是否為觸控裝置
-            if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-                e.preventDefault();
-                container.classList.toggle('touched');
+            if (!isTouchDevice) {
+                // 桌面裝置不需要點擊切換，用 hover 即可
             }
         });
         
