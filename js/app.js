@@ -3,6 +3,53 @@ let selectedCount = 1;
 let isDrawn = false;
 let drawnCards = [];
 let currentReadingId = null; // 當前抽牌紀錄的 ID
+let currentAIInterpretation = null; // 當前 AI 解牌結果
+let currentReadingMode = 'question'; // 解牌模式：'question' 問問題 / 'advice' 尋求建議
+let currentDeckMode = 'all'; // 抽牌範圍：'all' 全抽 / 'major' 大牌 / 'minor40' 小牌40張 / 'minor56' 小牌56張
+
+// 牌組定義
+const MAJOR_ARCANA = tarotCards.slice(0, 22); // 大牌 22 張
+const MINOR_ARCANA = tarotCards.slice(22); // 小牌 56 張
+// 小牌 40 張（只有數字牌 1-10，不含宮廷牌）
+const MINOR_40 = MINOR_ARCANA.filter(card => {
+    // 排除宮廷牌（侍衛、騎士、皇后、國王）
+    return !card.name.includes('侍衛') && 
+           !card.name.includes('騎士') && 
+           !card.name.includes('皇后') && 
+           !card.name.includes('國王');
+});
+
+// 根據模式取得可抽的牌組
+function getAvailableDeck() {
+    switch (currentDeckMode) {
+        case 'major': return MAJOR_ARCANA;
+        case 'minor40': return MINOR_40;
+        case 'minor56': return MINOR_ARCANA;
+        default: return tarotCards;
+    }
+}
+
+// 設定抽牌範圍
+function setDeckMode(mode) {
+    if (isDrawn) return; // 已抽牌時不能切換
+    currentDeckMode = mode;
+    document.querySelectorAll('.deck-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.deck === mode);
+    });
+}
+
+// API 端點（本地開發用 localhost，部署後用相對路徑）
+const API_BASE = window.location.hostname === 'localhost' 
+    ? 'http://localhost:3000' 
+    : '';
+
+// 設定解牌模式
+function setReadingMode(mode) {
+    currentReadingMode = mode;
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
+}
 
 // 張數選擇
 document.querySelectorAll('.count-btn').forEach(btn => {
@@ -26,11 +73,15 @@ document.getElementById('drawBtn').addEventListener('click', () => {
 // 抽牌功能
 function drawCards() {
     const display = document.getElementById('cardsDisplay');
+    const hoverHint = document.getElementById('hoverHint');
     display.innerHTML = '';
     drawnCards = [];
     
+    // 根據抽牌範圍取得可用牌組
+    const availableDeck = getAvailableDeck();
+    
     // 隨機抽取不重複的牌
-    const shuffled = [...tarotCards].sort(() => Math.random() - 0.5);
+    const shuffled = [...availableDeck].sort(() => Math.random() - 0.5);
     const drawn = shuffled.slice(0, selectedCount);
     
     drawn.forEach(card => {
@@ -66,33 +117,25 @@ function drawCards() {
             </div>
         `;
         
-        // 觸控裝置支援 - 點擊切換牌卡顯示
+        // 觸控裝置支援
         const container = wrapper.querySelector('.card-container');
-        let isTouchDevice = false;
-        
-        // 儲存牌卡資訊供後續使用
-        wrapper.dataset.cardName = card.name;
-        wrapper.dataset.cardKeywords = card.keywords;
-        wrapper.dataset.cardMeaning = meaningText;
-        wrapper.dataset.isReversed = isReversed;
-        
-        // 偵測觸控事件
-        container.addEventListener('touchend', (e) => {
-            isTouchDevice = true;
-            e.preventDefault();
-            handleCardClick(wrapper, selectedCount);
-        });
-        
-        // 桌面裝置的點擊
-        container.addEventListener('click', (e) => {
-            handleCardClick(wrapper, selectedCount);
+        container.addEventListener('touchstart', (e) => {
+            container.classList.toggle('touched');
         });
         
         display.appendChild(wrapper);
     });
     
-    // 調整牌卡大小以適應螢幕寬度
-    adjustCardSize();
+    // 顯示提示
+    hoverHint.style.display = 'block';
+    
+    // 顯示 AI 解牌按鈕
+    document.getElementById('aiSection').style.display = 'block';
+    document.getElementById('aiResult').style.display = 'none';
+    document.getElementById('aiBtn').disabled = false;
+    document.getElementById('aiBtn').classList.remove('loading');
+    document.getElementById('aiBtn').innerHTML = '🔮 AI 解牌';
+    currentAIInterpretation = null;
     
     // 顯示筆記區（如果已登入）
     if (currentUser && isSupabaseConfigured()) {
@@ -115,18 +158,27 @@ function drawCards() {
     
     // 如果已登入，儲存抽牌紀錄
     if (currentUser && isSupabaseConfigured()) {
+        console.log('✅ 已登入，準備儲存抽牌紀錄...');
         saveReading(drawnCards);
+    } else {
+        console.log('⚠️ 未登入或 Supabase 未設定，不儲存紀錄');
+        console.log('currentUser:', currentUser);
+        console.log('isSupabaseConfigured:', isSupabaseConfigured());
     }
 }
 
 // 重置抽牌
 function resetDraw() {
     const display = document.getElementById('cardsDisplay');
+    const hoverHint = document.getElementById('hoverHint');
     display.innerHTML = '';
+    hoverHint.style.display = 'none';
     document.getElementById('noteSection').style.display = 'none';
-    document.getElementById('meaningDisplay').style.display = 'none';
+    document.getElementById('aiSection').style.display = 'none';
+    document.getElementById('aiResult').style.display = 'none';
     drawnCards = [];
     currentReadingId = null;
+    currentAIInterpretation = null;
     
     isDrawn = false;
     const drawBtn = document.getElementById('drawBtn');
@@ -139,8 +191,14 @@ function resetDraw() {
 }
 
 // 儲存抽牌紀錄到 Supabase
-async function saveReading(cards) {
-    if (!currentUser || !isSupabaseConfigured()) return;
+async function saveReading(cards, aiInterpretation = null) {
+    if (!currentUser || !isSupabaseConfigured()) {
+        console.log('❌ saveReading: 條件不符，無法儲存');
+        return;
+    }
+    
+    // 儲存時去除 AI 解牌的前後空白
+    const cleanedAI = aiInterpretation ? aiInterpretation.trim() : null;
     
     const reading = {
         user_id: currentUser.id,
@@ -150,8 +208,12 @@ async function saveReading(cards) {
             isReversed: c.isReversed
         })),
         note: '',
+        ai_interpretation: cleanedAI,
+        reading_mode: currentReadingMode,
         created_at: new Date().toISOString()
     };
+    
+    console.log('📝 準備儲存紀錄:', reading);
     
     const { data, error } = await supabase
         .from('readings')
@@ -159,11 +221,13 @@ async function saveReading(cards) {
         .select();
     
     if (error) {
-        console.error('儲存抽牌紀錄失敗:', error);
+        console.error('❌ 儲存抽牌紀錄失敗:', error);
+        console.error('錯誤詳情:', JSON.stringify(error, null, 2));
     } else {
-        console.log('抽牌紀錄已儲存');
+        console.log('✅ 抽牌紀錄已儲存:', data);
         if (data && data.length > 0) {
             currentReadingId = data[0].id;
+            console.log('📌 currentReadingId:', currentReadingId);
         }
     }
 }
@@ -224,6 +288,127 @@ document.getElementById('noteInput')?.addEventListener('input', function() {
     const count = this.value.length;
     document.getElementById('noteCharCount').textContent = count;
 });
+
+// ===== AI 解牌功能 =====
+
+// 請求 AI 解牌
+async function requestAIReading() {
+    if (drawnCards.length === 0) {
+        alert('請先抽牌');
+        return;
+    }
+    
+    // 檢查是否可以使用 AI 解牌
+    if (!canUseAIReading()) {
+        const goToShop = confirm('免費次數已用完，金幣不足！\n\n是否前往商店購買金幣？');
+        if (goToShop) {
+            showShop();
+        }
+        return;
+    }
+    
+    // 如果需要消耗金幣，先確認
+    if (freeAIReadings <= 0) {
+        const confirmUse = confirm(`將消耗 ${AI_READING_COST} 金幣進行 AI 解牌\n\n目前餘額：${userCoins} 金幣\n\n確定要繼續嗎？`);
+        if (!confirmUse) return;
+    }
+    
+    const aiBtn = document.getElementById('aiBtn');
+    const aiResult = document.getElementById('aiResult');
+    const aiResultContent = document.getElementById('aiResultContent');
+    
+    // 顯示載入狀態
+    aiBtn.disabled = true;
+    aiBtn.classList.add('loading');
+    aiBtn.innerHTML = '🔮 解讀中...';
+    aiResult.style.display = 'none';
+    
+    try {
+        const response = await fetch(`${API_BASE}/api/ai-reading`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                cards: drawnCards.map(c => ({
+                    name: c.name,
+                    isReversed: c.isReversed
+                })),
+                mode: currentReadingMode // 傳送解牌模式
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('AI 服務暫時無法使用');
+        }
+        
+        const data = await response.json();
+        
+        if (data.success && data.interpretation) {
+            // 去除前後空白和每行開頭空白
+            const interpretation = data.interpretation.trim().replace(/^[ \t]+/gm, '');
+            currentAIInterpretation = interpretation;
+            
+            // 消耗免費次數或金幣
+            consumeAIReading();
+            
+            // 顯示結果
+            aiResultContent.textContent = interpretation;
+            aiResult.style.display = 'block';
+            aiBtn.innerHTML = '✓ 已解牌';
+            
+            // 如果已登入，更新紀錄加入 AI 解牌結果
+            if (currentUser && isSupabaseConfigured() && currentReadingId) {
+                await updateReadingWithAI(currentReadingId, interpretation);
+            }
+        } else {
+            throw new Error(data.error || '解牌失敗');
+        }
+        
+    } catch (error) {
+        console.error('AI 解牌錯誤:', error);
+        alert(error.message || 'AI 解牌失敗，請稍後再試');
+        aiBtn.disabled = false;
+        aiBtn.classList.remove('loading');
+        aiBtn.innerHTML = '🔮 AI 解牌';
+    }
+}
+
+// 更新紀錄加入 AI 解牌結果
+async function updateReadingWithAI(readingId, interpretation) {
+    // 儲存時去除前後空白
+    const cleanedAI = interpretation ? interpretation.trim() : null;
+    
+    const { error } = await supabase
+        .from('readings')
+        .update({ ai_interpretation: cleanedAI })
+        .eq('id', readingId);
+    
+    if (error) {
+        console.error('更新 AI 解牌紀錄失敗:', error);
+    } else {
+        console.log('AI 解牌結果已儲存');
+    }
+}
+
+// 隱藏 AI 解牌結果
+function hideAIResult() {
+    document.getElementById('aiResult').style.display = 'none';
+}
+
+// 切換歷史紀錄中的 AI 解牌顯示
+function toggleAIDisplay(readingId) {
+    const content = document.getElementById(`ai-content-${readingId}`);
+    const icon = document.getElementById(`ai-toggle-${readingId}`);
+    
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        icon.textContent = '▲';
+    } else {
+        content.style.display = 'none';
+        icon.textContent = '▼';
+    }
+}
 
 // ===== 日曆功能 =====
 let calendarData = [];
@@ -445,17 +630,23 @@ function showDayReadings(year, month, day) {
                     </div>
                </div>`;
         
+        // AI 解牌結果（去除前後空白和每行開頭空白）
+        const aiText = reading.ai_interpretation 
+            ? reading.ai_interpretation.trim().replace(/^[ \t]+/gm, '') 
+            : '';
+        const aiHtml = aiText 
+            ? `<div class="day-reading-ai"><div class="day-reading-ai-header" onclick="toggleAIDisplay('${reading.id}')"><span>🔮 AI 解牌結果</span><span class="ai-toggle-icon" id="ai-toggle-${reading.id}">▼</span></div><div class="day-reading-ai-content" id="ai-content-${reading.id}" style="display: none;">${escapeHtml(aiText)}</div></div>`
+            : '';
+        
         return `
             <div class="day-reading-item" data-reading-id="${reading.id}">
                 <div class="day-reading-time">🕐 ${time}</div>
                 <div class="day-reading-cards">${cardsHtml}</div>
+                ${aiHtml}
                 ${noteHtml}
             </div>
         `;
     }).join('');
-    
-    // 調整歷史紀錄牌卡大小
-    setTimeout(() => adjustHistoryCardSize(), 0);
 }
 
 // 上個月
@@ -545,167 +736,261 @@ document.querySelectorAll('.modal').forEach(modal => {
     });
 });
 
-// 調整牌卡大小以適應螢幕寬度（不換行）
-function adjustCardSize() {
-    const display = document.getElementById('cardsDisplay');
-    const wrappers = display.querySelectorAll('.card-wrapper');
-    const cardCount = wrappers.length;
-    
-    if (cardCount === 0) return;
-    
-    // 計算可用寬度
-    const containerWidth = display.parentElement.clientWidth - 20; // 減去 padding
-    const gap = Math.min(20, containerWidth * 0.03); // gap 最大 20px 或 3vw
-    const totalGap = gap * (cardCount - 1);
-    const maxCardWidth = 112; // 最大牌卡寬度
-    
-    // 計算每張牌的理想寬度
-    let cardWidth = (containerWidth - totalGap) / cardCount;
-    
-    // 限制最大寬度
-    cardWidth = Math.min(cardWidth, maxCardWidth);
-    
-    // 設定每張牌的寬度
-    wrappers.forEach(wrapper => {
-        wrapper.style.width = `${cardWidth}px`;
-    });
-    
-    // 調整邊框
-    const scale = cardWidth / maxCardWidth;
-    wrappers.forEach(wrapper => {
-        const meaningLayer = wrapper.querySelector('.card-meaning-layer');
-        const cardFrame = wrapper.querySelector('.card-frame');
-        const cardInner = wrapper.querySelector('.card-inner');
-        
-        // 調整邊框大小
-        if (cardFrame) {
-            cardFrame.style.padding = `${6 * scale}px`;
-            cardFrame.style.borderRadius = `${10 * scale}px`;
-        }
-        
-        if (cardInner) {
-            cardInner.style.padding = `${4 * scale}px`;
-            cardInner.style.borderRadius = `${6 * scale}px`;
-        }
-        
-        // 調整牌義層（只調整 padding 和 border，字體維持原大小）
-        if (meaningLayer) {
-            meaningLayer.style.padding = `${10 * scale}px ${8 * scale}px`;
-            meaningLayer.style.borderRadius = `${10 * scale}px`;
-            meaningLayer.style.borderWidth = `${2 * scale}px`;
-        }
-        
-        // 檢查牌名是否超出寬度，如果超出則縮放
-        const cardName = wrapper.querySelector('.card-name');
-        if (cardName) {
-            // 先重置縮放
-            cardName.style.transform = '';
-            cardName.style.transformOrigin = 'center top';
-            
-            // 檢查是否超出
-            const wrapperWidth = wrapper.clientWidth;
-            const nameWidth = cardName.scrollWidth;
-            
-            if (nameWidth > wrapperWidth) {
-                const nameScale = wrapperWidth / nameWidth;
-                cardName.style.transform = `scale(${nameScale})`;
-            }
-        }
-    });
-}
+// ========== 商店功能 ==========
 
-// 視窗大小改變時重新調整
-window.addEventListener('resize', () => {
-    if (isDrawn) {
-        adjustCardSize();
-    }
-    adjustHistoryCardSize();
-});
+// 使用者金幣餘額（暫時用本地變數，之後會從資料庫讀取）
+let userCoins = 0;
+let isFirstPurchase = true;
 
-// 調整歷史紀錄牌卡大小（不換行）
-function adjustHistoryCardSize() {
-    const containers = document.querySelectorAll('.day-reading-cards');
-    
-    containers.forEach(container => {
-        const cards = container.querySelectorAll('.history-card');
-        const cardCount = cards.length;
-        
-        if (cardCount === 0) return;
-        
-        // 計算可用寬度
-        const containerWidth = container.clientWidth;
-        const gap = 8;
-        const totalGap = gap * (cardCount - 1);
-        const maxCardWidth = 70; // 最大牌卡寬度
-        
-        // 計算每張牌的理想寬度
-        let cardWidth = (containerWidth - totalGap) / cardCount;
-        
-        // 限制最大寬度
-        cardWidth = Math.min(cardWidth, maxCardWidth);
-        
-        // 計算縮放比例
-        const scale = cardWidth / maxCardWidth;
-        
-        // 設定每張牌的寬度和內部元素
-        cards.forEach(card => {
-            card.style.width = `${cardWidth}px`;
-            card.style.padding = `${8 * scale}px`;
-            card.style.borderRadius = `${8 * scale}px`;
-            card.style.gap = `${5 * scale}px`;
-            
-            const img = card.querySelector('.history-card-img');
-            if (img) {
-                img.style.width = `${50 * scale}px`;
-                img.style.height = `${80 * scale}px`;
-                img.style.borderRadius = `${4 * scale}px`;
-            }
-            
-            const name = card.querySelector('.history-card-name');
-            if (name) {
-                name.style.fontSize = `${0.7 * scale}rem`;
-            }
-        });
-    });
-}
+// AI 解牌免費次數（每月重置）
+let freeAIReadings = 5;
+const AI_READING_COST = 30; // 每次 AI 解牌消耗金幣
 
-// 處理牌卡點擊
-function handleCardClick(wrapper, cardCount) {
-    const container = wrapper.querySelector('.card-container');
-    const meaningDisplay = document.getElementById('meaningDisplay');
+// 更新 AI 解牌使用資訊顯示
+function updateAIUsageDisplay() {
+    const freeCountEl = document.getElementById('freeCount');
+    const coinCostEl = document.getElementById('coinCost');
     
-    // 4-5 張牌時，在下方顯示牌義
-    if (cardCount >= 4) {
-        // 移除其他牌卡的選中狀態
-        document.querySelectorAll('.card-wrapper').forEach(w => {
-            w.classList.remove('selected');
-        });
-        
-        // 切換當前牌卡的選中狀態
-        const isSelected = wrapper.classList.contains('selected');
-        
-        if (isSelected) {
-            // 取消選中，隱藏牌義
-            wrapper.classList.remove('selected');
-            meaningDisplay.style.display = 'none';
-        } else {
-            // 選中，顯示牌義
-            wrapper.classList.add('selected');
-            
-            const isReversed = wrapper.dataset.isReversed === 'true';
-            const cardName = wrapper.dataset.cardName;
-            const keywords = wrapper.dataset.cardKeywords;
-            const meaning = wrapper.dataset.cardMeaning;
-            
-            document.getElementById('meaningDisplayTitle').innerHTML = 
-                `${isReversed ? '<span class="reversed-tag">逆</span> ' : ''}${cardName}`;
-            document.getElementById('meaningDisplayKeywords').textContent = keywords;
-            document.getElementById('meaningDisplayText').textContent = meaning;
-            
-            meaningDisplay.style.display = 'block';
-        }
+    if (!freeCountEl || !coinCostEl) return;
+    
+    if (freeAIReadings > 0) {
+        freeCountEl.textContent = `免費 ${freeAIReadings} 次`;
+        freeCountEl.style.display = 'inline';
+        coinCostEl.style.display = 'none';
     } else {
-        // 1-3 張牌時，使用原本的翻牌效果
-        container.classList.toggle('touched');
+        freeCountEl.style.display = 'none';
+        // 使用五角金幣圖示
+        coinCostEl.innerHTML = `${AI_READING_COST} ${getPentacleCoin('1em')}/次`;
+        coinCostEl.style.display = 'inline';
     }
 }
+
+// 消耗 AI 解牌次數或金幣
+function consumeAIReading() {
+    if (freeAIReadings > 0) {
+        freeAIReadings--;
+        updateAIUsageDisplay();
+        return true;
+    } else if (userCoins >= AI_READING_COST) {
+        userCoins -= AI_READING_COST;
+        updateCoinBalanceDisplay();
+        return true;
+    } else {
+        return false;
+    }
+}
+
+// 檢查是否可以使用 AI 解牌
+function canUseAIReading() {
+    return freeAIReadings > 0 || userCoins >= AI_READING_COST;
+}
+
+// 金幣包資料
+const coinPackages = {
+    trial: { name: '體驗包', price: 50, coins: 52, bonus: 4, firstBonus: 68 },
+    starter: { name: '入門包', price: 100, coins: 105, bonus: 5, firstBonus: 137 },
+    value: { name: '小資包', price: 300, coins: 330, bonus: 10, firstBonus: 429 },
+    super: { name: '超值包', price: 500, coins: 575, bonus: 15, firstBonus: 748 },
+    premium: { name: '豪華包', price: 1000, coins: 1200, bonus: 20, firstBonus: 1560 },
+    ultimate: { name: '尊爵包', price: 3000, coins: 3900, bonus: 30, firstBonus: 5070 }
+};
+
+// 訂閱方案資料
+const subscriptionPlans = {
+    basic: { name: '入門會員', price: 79, monthlyCoins: 50 },
+    standard: { name: '標準會員', price: 149, monthlyCoins: 100 },
+    pro: { name: '專業會員', price: 299, monthlyCoins: 200 }
+};
+
+// 顯示商店
+function showShop() {
+    if (!currentUser) {
+        alert('請先登入才能使用商店功能');
+        showLoginModal();
+        return;
+    }
+    
+    document.getElementById('shopModal').style.display = 'flex';
+    updateShopDisplay();
+}
+
+// 隱藏商店
+function hideShop() {
+    document.getElementById('shopModal').style.display = 'none';
+}
+
+// 更新商店顯示
+function updateShopDisplay() {
+    // 更新金幣餘額
+    document.getElementById('shopCoinBalance').textContent = userCoins.toLocaleString();
+    document.getElementById('coinBalance').textContent = userCoins.toLocaleString();
+    
+    // 更新首儲優惠顯示
+    const firstPurchaseBanner = document.getElementById('firstPurchaseBanner');
+    if (firstPurchaseBanner) {
+        firstPurchaseBanner.style.display = isFirstPurchase ? 'flex' : 'none';
+    }
+    
+    // 更新首購金幣顯示
+    document.querySelectorAll('.package-first-bonus').forEach(el => {
+        el.style.display = isFirstPurchase ? 'block' : 'none';
+    });
+    
+    // 更新新手任務狀態（之後會從資料庫讀取）
+    updateWelcomeBonusTasks();
+}
+
+// 更新新手任務狀態
+function updateWelcomeBonusTasks() {
+    // 這裡之後會從資料庫讀取任務完成狀態
+    const taskRegister = document.getElementById('taskRegister');
+    if (taskRegister && currentUser) {
+        taskRegister.classList.add('completed');
+        taskRegister.querySelector('.task-check').textContent = '✓';
+    }
+}
+
+// 選擇金幣包
+function selectPackage(packageId) {
+    const pkg = coinPackages[packageId];
+    if (!pkg) return;
+    
+    const coinsToGet = isFirstPurchase ? pkg.firstBonus : pkg.coins;
+    const message = isFirstPurchase 
+        ? `確定要購買「${pkg.name}」嗎？\n\n價格：NT$ ${pkg.price}\n獲得：${coinsToGet} ⭐（含首購加贈 30%）`
+        : `確定要購買「${pkg.name}」嗎？\n\n價格：NT$ ${pkg.price}\n獲得：${pkg.coins} ⭐（+${pkg.bonus}% 增量）`;
+    
+    if (confirm(message)) {
+        // 這裡之後會接入實際的金流系統
+        alert('🚧 金流系統建置中\n\n目前尚未開放購買，敬請期待！');
+        // processPurchase(packageId);
+    }
+}
+
+// 選擇訂閱方案
+function selectSubscription(planId) {
+    const plan = subscriptionPlans[planId];
+    if (!plan) return;
+    
+    const message = `確定要訂閱「${plan.name}」嗎？\n\n月費：NT$ ${plan.price}/月\n每月贈送：${plan.monthlyCoins} ⭐`;
+    
+    if (confirm(message)) {
+        // 這裡之後會接入實際的訂閱系統
+        alert('🚧 訂閱系統建置中\n\n目前尚未開放訂閱，敬請期待！');
+        // processSubscription(planId);
+    }
+}
+
+// 處理購買（之後實作）
+async function processPurchase(packageId) {
+    const pkg = coinPackages[packageId];
+    const coinsToAdd = isFirstPurchase ? pkg.firstBonus : pkg.coins;
+    
+    // TODO: 接入金流 API
+    // TODO: 更新資料庫金幣餘額
+    // TODO: 記錄交易紀錄
+    
+    userCoins += coinsToAdd;
+    if (isFirstPurchase) {
+        isFirstPurchase = false;
+    }
+    
+    updateShopDisplay();
+    alert(`購買成功！獲得 ${coinsToAdd} ⭐`);
+}
+
+// 更新頂部金幣餘額顯示
+function updateCoinBalanceDisplay() {
+    const coinBalanceEl = document.getElementById('coinBalance');
+    if (coinBalanceEl) {
+        coinBalanceEl.textContent = userCoins.toLocaleString();
+    }
+}
+
+// 載入使用者金幣餘額（之後從資料庫讀取）
+async function loadUserCoins() {
+    if (!currentUser || !isSupabaseConfigured()) return;
+    
+    // TODO: 從資料庫讀取金幣餘額和免費次數
+    // const { data, error } = await supabase
+    //     .from('user_coins')
+    //     .select('balance, is_first_purchase, free_ai_readings')
+    //     .eq('user_id', currentUser.id)
+    //     .single();
+    
+    // 暫時使用預設值
+    userCoins = 100; // 新手禮包
+    isFirstPurchase = true;
+    freeAIReadings = 5; // 每月免費 5 次
+    
+    updateCoinBalanceDisplay();
+    updateAIUsageDisplay();
+}
+
+// ========== 收費說明功能 ==========
+
+// 顯示收費說明
+function showPricingInfo() {
+    document.getElementById('pricingModal').style.display = 'flex';
+}
+
+// 隱藏收費說明
+function hidePricingInfo() {
+    document.getElementById('pricingModal').style.display = 'none';
+}
+
+// ========== 五角金幣圖示 ==========
+
+// 五角金幣 SVG 圖示（雙圓圈+星星）
+const PENTACLE_SVG = `<svg class="pentacle-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="7" stroke-width="1"></circle><polygon points="12,5 13.5,9.5 18,10 14.5,13 15.5,17.5 12,15 8.5,17.5 9.5,13 6,10 10.5,9.5" fill="currentColor" stroke="none"></polygon></svg>`;
+
+// 取得五角金幣 HTML
+function getPentacleCoin(size = '1em') {
+    return `<span class="pentacle-coin" style="width:${size};height:${size}">${PENTACLE_SVG}</span>`;
+}
+
+// 頁面載入後替換所有 ⭐ 為五角金幣圖示
+function replacePentacleIcons() {
+    // 需要替換的容器選擇器
+    const containers = [
+        '.shop-balance',
+        '.welcome-bonus',
+        '.coin-packages',
+        '.subscription-section',
+        '.shop-info',
+        '.pricing-section',
+        '.ai-usage-info'
+    ];
+    
+    containers.forEach(selector => {
+        document.querySelectorAll(selector).forEach(container => {
+            // 遍歷所有文字節點
+            const walker = document.createTreeWalker(
+                container,
+                NodeFilter.SHOW_TEXT,
+                null,
+                false
+            );
+            
+            const textNodes = [];
+            let node;
+            while (node = walker.nextNode()) {
+                if (node.textContent.includes('⭐')) {
+                    textNodes.push(node);
+                }
+            }
+            
+            textNodes.forEach(textNode => {
+                const span = document.createElement('span');
+                span.innerHTML = textNode.textContent.replace(/⭐/g, getPentacleCoin('1em'));
+                textNode.parentNode.replaceChild(span, textNode);
+            });
+        });
+    });
+}
+
+// 頁面載入完成後執行替換
+document.addEventListener('DOMContentLoaded', () => {
+    // 延遲執行以確保所有元素都已載入
+    setTimeout(replacePentacleIcons, 100);
+});

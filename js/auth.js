@@ -36,6 +36,11 @@ function updateUserUI() {
         userInfo.style.display = 'flex';
         loginPrompt.style.display = 'none';
         userName.textContent = currentUser.user_metadata?.name || currentUser.email?.split('@')[0] || '使用者';
+        
+        // 載入使用者金幣餘額
+        if (typeof loadUserCoins === 'function') {
+            loadUserCoins();
+        }
     } else {
         userInfo.style.display = 'none';
         loginPrompt.style.display = 'block';

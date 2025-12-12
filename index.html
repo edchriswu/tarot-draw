@@ -5,14 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>塔羅抽牌</title>
     <link rel="stylesheet" href="css/style.css">
-    <!-- Google Analytics -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
-    <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
-        gtag('config', 'G-XXXXXXXXXX');
-    </script>
 </head>
 <body>
     <!-- 使用者狀態列 -->
@@ -28,6 +20,14 @@
                     <rect x="7" y="14" width="3" height="3" rx="0.5" fill="currentColor" stroke="none"></rect>
                 </svg>
             </button>
+            <button class="shop-btn" onclick="showShop()">
+                <svg class="pentacle-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <circle cx="12" cy="12" r="7" stroke-width="1"></circle>
+                    <polygon points="12,5 13.5,9.5 18,10 14.5,13 15.5,17.5 12,15 8.5,17.5 9.5,13 6,10 10.5,9.5" fill="currentColor" stroke="none"></polygon>
+                </svg>
+                <span class="coin-balance" id="coinBalance">0</span>
+            </button>
             <button class="logout-btn" onclick="logout()">登出</button>
         </div>
         <div class="login-prompt" id="loginPrompt">
@@ -37,6 +37,38 @@
 
     <div class="container">
         <h1>✨ 塔羅抽牌 ✨</h1>
+        
+        <!-- 抽牌範圍選擇 -->
+        <div class="deck-mode-selector">
+            <span class="mode-label">抽牌範圍：</span>
+            <div class="deck-toggle">
+                <button class="deck-btn active" data-deck="all" onclick="setDeckMode('all')">
+                    🎴 全抽 (78)
+                </button>
+                <button class="deck-btn" data-deck="major" onclick="setDeckMode('major')">
+                    ⭐ 大牌 (22)
+                </button>
+                <button class="deck-btn" data-deck="minor40" onclick="setDeckMode('minor40')">
+                    🔢 小牌 (40)
+                </button>
+                <button class="deck-btn" data-deck="minor56" onclick="setDeckMode('minor56')">
+                    🃏 小牌 (56)
+                </button>
+            </div>
+        </div>
+        
+        <!-- 解牌模式切換 -->
+        <div class="reading-mode-selector">
+            <span class="mode-label">解牌模式：</span>
+            <div class="mode-toggle">
+                <button class="mode-btn active" data-mode="question" onclick="setReadingMode('question')">
+                    ❓ 問問題
+                </button>
+                <button class="mode-btn" data-mode="advice" onclick="setReadingMode('advice')">
+                    💡 尋求建議
+                </button>
+            </div>
+        </div>
         
         <div class="card-count-selector" id="countSelector">
             <button class="count-btn active" data-count="1">1</button>
@@ -49,11 +81,33 @@
         
         <div class="cards-display" id="cardsDisplay"></div>
         
-        <!-- 牌義顯示區（4-5張牌時使用） -->
-        <div class="meaning-display" id="meaningDisplay" style="display: none;">
-            <div class="meaning-display-title" id="meaningDisplayTitle"></div>
-            <div class="meaning-display-keywords" id="meaningDisplayKeywords"></div>
-            <div class="meaning-display-text" id="meaningDisplayText"></div>
+        <div class="hover-hint" id="hoverHint" style="display: none;">👆 將滑鼠移到牌卡上查看牌義</div>
+        
+        <!-- AI 解牌區 -->
+        <div class="ai-section" id="aiSection" style="display: none;">
+            <div class="ai-btn-wrapper">
+                <button class="ai-btn" id="aiBtn" onclick="requestAIReading()">
+                    🔮 AI 解牌
+                </button>
+                <span class="ai-usage-info" id="aiUsageInfo">
+                    <span class="free-count" id="freeCount">免費 5 次</span>
+                    <span class="coin-cost" id="coinCost" style="display: none;">30 ⭐/次</span>
+                    <button class="pricing-info-btn" onclick="showPricingInfo()" title="收費說明">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <circle cx="12" cy="16" r="1" fill="currentColor"></circle>
+                        </svg>
+                    </button>
+                </span>
+            </div>
+            <div class="ai-result" id="aiResult" style="display: none;">
+                <div class="ai-result-header">
+                    <span>✨ AI 解牌結果</span>
+                    <button class="ai-close-btn" onclick="hideAIResult()">✕</button>
+                </div>
+                <div class="ai-result-content" id="aiResultContent"></div>
+            </div>
         </div>
         
         <!-- 筆記區 -->
@@ -154,12 +208,252 @@
         </div>
     </div>
 
-    <!-- 與我聯絡按鈕 -->
-    <a href="https://line.me/R/ti/p/@ozp1008k" target="_blank" class="contact-btn" title="與我聯絡">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63h2.386c.349 0 .63.285.63.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.627-.63.349 0 .631.285.631.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314"/>
-        </svg>
-    </a>
+    <!-- 商店彈窗 -->
+    <div class="modal" id="shopModal" style="display: none;">
+        <div class="modal-content modal-shop">
+            <button class="modal-close" onclick="hideShop()">✕</button>
+            <h2>⭐ 五角金幣商店</h2>
+            
+            <!-- 金幣餘額 -->
+            <div class="shop-balance">
+                <div class="balance-icon">⭐</div>
+                <div class="balance-info">
+                    <span class="balance-label">目前餘額</span>
+                    <span class="balance-value" id="shopCoinBalance">0</span>
+                </div>
+            </div>
+            
+            <!-- 新手禮包提示 -->
+            <div class="welcome-bonus" id="welcomeBonus">
+                <div class="bonus-badge">🎁 新手禮包</div>
+                <div class="bonus-text">完成任務可獲得 <strong>100 金幣</strong></div>
+                <div class="bonus-tasks">
+                    <div class="task-item" id="taskRegister">
+                        <span class="task-check">✓</span>
+                        <span>完成註冊</span>
+                        <span class="task-reward">+50 ⭐</span>
+                    </div>
+                    <div class="task-item" id="taskFirstDraw">
+                        <span class="task-check">○</span>
+                        <span>完成首次抽牌</span>
+                        <span class="task-reward">+20 ⭐</span>
+                    </div>
+                    <div class="task-item" id="taskStreak">
+                        <span class="task-check">○</span>
+                        <span>連續 3 天登入</span>
+                        <span class="task-reward">+30 ⭐</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 首儲優惠提示 -->
+            <div class="first-purchase-banner" id="firstPurchaseBanner">
+                <span class="banner-icon">🔥</span>
+                <span class="banner-text">首次購買額外加贈 <strong>30%</strong></span>
+            </div>
+            
+            <!-- 金幣包列表 -->
+            <div class="coin-packages">
+                <h3>💰 金幣包</h3>
+                <div class="package-list">
+                    <div class="package-item" onclick="selectPackage('trial')">
+                        <div class="package-name">體驗包</div>
+                        <div class="package-coins">52 ⭐</div>
+                        <div class="package-bonus">+4%</div>
+                        <div class="package-price">NT$ 50</div>
+                        <div class="package-first-bonus">首購得 68 ⭐</div>
+                    </div>
+                    <div class="package-item" onclick="selectPackage('starter')">
+                        <div class="package-name">入門包</div>
+                        <div class="package-coins">105 ⭐</div>
+                        <div class="package-bonus">+5%</div>
+                        <div class="package-price">NT$ 100</div>
+                        <div class="package-first-bonus">首購得 137 ⭐</div>
+                    </div>
+                    <div class="package-item popular" onclick="selectPackage('value')">
+                        <div class="package-tag">最多人選</div>
+                        <div class="package-name">小資包</div>
+                        <div class="package-coins">330 ⭐</div>
+                        <div class="package-bonus">+10%</div>
+                        <div class="package-price">NT$ 300</div>
+                        <div class="package-first-bonus">首購得 429 ⭐</div>
+                    </div>
+                    <div class="package-item" onclick="selectPackage('super')">
+                        <div class="package-name">超值包</div>
+                        <div class="package-coins">575 ⭐</div>
+                        <div class="package-bonus">+15%</div>
+                        <div class="package-price">NT$ 500</div>
+                        <div class="package-first-bonus">首購得 748 ⭐</div>
+                    </div>
+                    <div class="package-item" onclick="selectPackage('premium')">
+                        <div class="package-name">豪華包</div>
+                        <div class="package-coins">1,200 ⭐</div>
+                        <div class="package-bonus">+20%</div>
+                        <div class="package-price">NT$ 1,000</div>
+                        <div class="package-first-bonus">首購得 1,560 ⭐</div>
+                    </div>
+                    <div class="package-item best-value" onclick="selectPackage('ultimate')">
+                        <div class="package-tag">最划算</div>
+                        <div class="package-name">尊爵包</div>
+                        <div class="package-coins">3,900 ⭐</div>
+                        <div class="package-bonus">+30%</div>
+                        <div class="package-price">NT$ 3,000</div>
+                        <div class="package-first-bonus">首購得 5,070 ⭐</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 訂閱方案 -->
+            <div class="subscription-section">
+                <h3>👑 會員訂閱</h3>
+                <div class="subscription-list">
+                    <div class="subscription-item" onclick="selectSubscription('basic')">
+                        <div class="sub-name">入門會員</div>
+                        <div class="sub-price">NT$ 79<span>/月</span></div>
+                        <div class="sub-benefits">
+                            <div>✓ 無限基礎 AI 解牌</div>
+                            <div>✓ 每月贈送 50 ⭐</div>
+                            <div>✓ 紀錄永久保存</div>
+                        </div>
+                    </div>
+                    <div class="subscription-item recommended" onclick="selectSubscription('standard')">
+                        <div class="sub-tag">推薦</div>
+                        <div class="sub-name">標準會員</div>
+                        <div class="sub-price">NT$ 149<span>/月</span></div>
+                        <div class="sub-benefits">
+                            <div>✓ 全功能無限使用</div>
+                            <div>✓ 每月贈送 100 ⭐</div>
+                            <div>✓ 進階牌陣</div>
+                            <div>✓ 無廣告</div>
+                        </div>
+                    </div>
+                    <div class="subscription-item" onclick="selectSubscription('pro')">
+                        <div class="sub-name">專業會員</div>
+                        <div class="sub-price">NT$ 299<span>/月</span></div>
+                        <div class="sub-benefits">
+                            <div>✓ 完整體驗</div>
+                            <div>✓ 每月贈送 200 ⭐</div>
+                            <div>✓ 優先客服</div>
+                            <div>✓ 搶先體驗新功能</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 使用說明 -->
+            <div class="shop-info">
+                <p>💡 1 金幣 = 1 新台幣 | 金幣永久有效不過期</p>
+                <p>🔮 AI 解牌消耗：無牌陣 30 ⭐ / 有牌陣 50 ⭐</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 收費說明彈窗 -->
+    <div class="modal" id="pricingModal" style="display: none;">
+        <div class="modal-content modal-pricing">
+            <button class="modal-close" onclick="hidePricingInfo()">✕</button>
+            <h2>💡 收費說明</h2>
+            
+            <!-- 免費額度 -->
+            <div class="pricing-section free-section">
+                <h3>🎁 免費額度</h3>
+                <div class="pricing-card">
+                    <div class="pricing-item">
+                        <span class="item-icon">🔮</span>
+                        <span class="item-name">每日抽牌</span>
+                        <span class="item-value free">永久免費</span>
+                    </div>
+                    <div class="pricing-item">
+                        <span class="item-icon">✨</span>
+                        <span class="item-name">AI 解牌（無牌陣）</span>
+                        <span class="item-value free">每月 5 次免費</span>
+                    </div>
+                    <div class="pricing-item">
+                        <span class="item-icon">📝</span>
+                        <span class="item-name">筆記功能</span>
+                        <span class="item-value free">永久免費</span>
+                    </div>
+                    <div class="pricing-item">
+                        <span class="item-icon">📅</span>
+                        <span class="item-name">日曆紀錄</span>
+                        <span class="item-value free">保存 30 天</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 新手禮包 -->
+            <div class="pricing-section bonus-section">
+                <h3>🎉 新手禮包</h3>
+                <div class="pricing-card">
+                    <p class="bonus-desc">首次註冊即可獲得 <strong>100 ⭐</strong> 五角金幣！</p>
+                    <div class="bonus-breakdown">
+                        <div class="bonus-item">✓ 完成註冊 +50 ⭐</div>
+                        <div class="bonus-item">✓ 首次抽牌 +20 ⭐</div>
+                        <div class="bonus-item">✓ 連續 3 天登入 +30 ⭐</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- AI 解牌收費 -->
+            <div class="pricing-section ai-section">
+                <h3>🔮 AI 解牌收費</h3>
+                <div class="pricing-card">
+                    <div class="pricing-item">
+                        <span class="item-icon">📋</span>
+                        <span class="item-name">無牌陣解牌</span>
+                        <span class="item-value paid">30 ⭐/次</span>
+                    </div>
+                    <div class="pricing-item">
+                        <span class="item-icon">🎴</span>
+                        <span class="item-name">有牌陣解牌</span>
+                        <span class="item-value paid">50 ⭐/次</span>
+                    </div>
+                    <div class="pricing-item">
+                        <span class="item-icon">💬</span>
+                        <span class="item-name">AI 深度對話</span>
+                        <span class="item-value paid">20 ⭐/次</span>
+                    </div>
+                </div>
+                <p class="pricing-note">💡 免費次數用完後，才會開始消耗金幣</p>
+            </div>
+            
+            <!-- 金幣說明 -->
+            <div class="pricing-section coin-section">
+                <h3>⭐ 五角金幣</h3>
+                <div class="pricing-card">
+                    <div class="coin-info">
+                        <p>1 金幣 = 1 新台幣</p>
+                        <p>金幣<strong>永久有效</strong>，不會過期</p>
+                        <p>儲值越多，增量越高（最高 +30%）</p>
+                    </div>
+                    <button class="go-shop-btn" onclick="hidePricingInfo(); showShop();">
+                        前往商店 →
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 會員優惠 -->
+            <div class="pricing-section member-section">
+                <h3>👑 會員專屬</h3>
+                <div class="pricing-card">
+                    <div class="member-benefits">
+                        <div class="benefit-item">
+                            <span class="benefit-title">入門會員</span>
+                            <span class="benefit-desc">$79/月 · 無限基礎 AI 解牌</span>
+                        </div>
+                        <div class="benefit-item">
+                            <span class="benefit-title">標準會員</span>
+                            <span class="benefit-desc">$149/月 · 全功能無限使用</span>
+                        </div>
+                        <div class="benefit-item">
+                            <span class="benefit-title">專業會員</span>
+                            <span class="benefit-desc">$299/月 · 完整體驗 + 優先服務</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/tarot-data.js"></script>
